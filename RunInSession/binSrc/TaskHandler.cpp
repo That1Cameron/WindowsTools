@@ -74,6 +74,7 @@ static void printComError(HRESULT hr, const char* msg) {
 }
 
 // register self as SYSTEM task
+// this is ugly and mostly setting up, calling, and checking COM taskmanager APIs
 bool registerTask(DWORD id, std::string path) {
     initLogFile(L"registerTask");
     logMsg(L"Starting registerTask() log...");
@@ -106,6 +107,7 @@ bool registerTask(DWORD id, std::string path) {
         CLSCTX_INPROC_SERVER,
         IID_ITaskService,
         (void**)&pService);
+
     if (FAILED(hr)) {
         printComError(hr, "CoCreateInstance(ITaskService) failed");
         CoUninitialize();
@@ -147,7 +149,7 @@ bool registerTask(DWORD id, std::string path) {
         pExisting->Release();
     }
 
-    // Create a task definition
+    // create task definition
     logMsg(L"Creating task...");
     ITaskDefinition* pTask = nullptr;
     hr = pService->NewTask(0, &pTask);
@@ -159,7 +161,7 @@ bool registerTask(DWORD id, std::string path) {
         return 1;
     }
 
-    // Registration info (author, etc.)
+    // registration info (author, etc.)
     IRegistrationInfo* pRegInfo = nullptr;
     hr = pTask->get_RegistrationInfo(&pRegInfo);
     if (SUCCEEDED(hr) && pRegInfo) {
@@ -167,7 +169,7 @@ bool registerTask(DWORD id, std::string path) {
         pRegInfo->Release();
     }
 
-    // Principal — set to run as SERVICE account (SYSTEM) with highest privileges
+    // principal: set to run as SERVICE account (SYSTEM) with highest privileges
     IPrincipal* pPrincipal = nullptr;
     hr = pTask->get_Principal(&pPrincipal);
     if (FAILED(hr)) {
@@ -191,8 +193,7 @@ bool registerTask(DWORD id, std::string path) {
         return 1;
     }
 
-    // To ensure it runs as SYSTEM, set the user ID to the well-known SID "S-1-5-18"
-    // Note: some examples set UserId = "SYSTEM"; SDDL SID is reliable.
+    // set the user ID to the well-known SYSTEM SID "S-1-5-18"
     hr = pPrincipal->put_UserId(_bstr_t(L"S-1-5-18"));
     if (FAILED(hr)) {
         printComError(hr, "put_UserId failed");
@@ -204,7 +205,7 @@ bool registerTask(DWORD id, std::string path) {
         return 1;
     }
 
-    // Run with highest privileges
+    // run with highest privileges
     hr = pPrincipal->put_RunLevel(TASK_RUNLEVEL_HIGHEST);
     if (FAILED(hr)) {
         printComError(hr, "put_RunLevel failed");
@@ -227,7 +228,7 @@ bool registerTask(DWORD id, std::string path) {
         pSettings->Release();
     }
 
-    // Create an action (Exec)
+    // create action (Exec)
     IActionCollection* pActionCollection = nullptr;
     hr = pTask->get_Actions(&pActionCollection);
     if (FAILED(hr)) {
@@ -264,32 +265,32 @@ bool registerTask(DWORD id, std::string path) {
         return false;
     }
 
-    // Set executable and arguments
+    // set executable and arguments
     hr = pExecAction->put_Path(_bstr_t(exePath));
     if (FAILED(hr)) {
         printComError(hr, "put_Path failed");
     }
 
-    // Build the argument string using the two input parameters
+    // build argument string using input parameters
     std::wstringstream argStream;
     argStream << "-id " << id << " -path " << L" \"" << std::wstring(path.begin(), path.end()) << L"\"";
     std::wstring args = argStream.str();
 
-    // Set the arguments
+    // set arguments
     hr = pExecAction->put_Arguments(_bstr_t(args.c_str()));
     if (FAILED(hr)) {
         printComError(hr, "put_Arguments failed");
     }
 
-    // Clean up action objects
+    // clean up action objects
     pExecAction->Release();
     pAction->Release();
     pActionCollection->Release();
 
-    // Register the task in the root folder.
+    // register task in root folder.
     IRegisteredTask* pRegisteredTask = nullptr;
     VARIANT vPassword; VariantInit(&vPassword); // no password neeeded
-    // Use TASK_LOGON_SERVICE_ACCOUNT as logon type when registering
+    // use TASK_LOGON_SERVICE_ACCOUNT as logon type for registering
     hr = pRootFolder->RegisterTaskDefinition(
         _bstr_t(taskName),
         pTask,
@@ -322,7 +323,7 @@ bool registerTask(DWORD id, std::string path) {
     }
 
 
-    // Cleanup
+    // cleanup
     if (pRegisteredTask) pRegisteredTask->Release();
     pTask->Release();
     pRootFolder->Release();

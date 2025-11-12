@@ -27,6 +27,20 @@ void showHelp() {
         << "\n";
 }
 
+// takes in a string and converts it to widestring with mbstowcs_s
+std::wstring stringToWide(const std::string& str) {
+    std::wstring wstr;
+    size_t size;
+    wstr.resize(str.length());
+    mbstowcs_s(&size, &wstr[0], wstr.size() + 1, str.c_str(), str.size());
+    return wstr;
+}
+
+void reportError(const std::wstring& msg) {
+    DWORD err = GetLastError();
+    logMsg(msg + L", error: " + std::to_wstring(err) + L"\n");
+}
+
 bool enablePrivileges(HANDLE token) {
     TOKEN_PRIVILEGES tp = {};
     LUID luid;
@@ -39,8 +53,7 @@ bool enablePrivileges(HANDLE token) {
     tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
     if (!AdjustTokenPrivileges(token, FALSE, &tp, sizeof(tp), NULL, NULL)) {
-        DWORD err = GetLastError();
-        logMsg(L"Could not gain SE_INCREASE_QUOTA_NAME" + std::to_wstring(err) + L"\n");
+        reportError(L"Could not gain SE_INCREASE_QUOTA_NAME");
         return false; 
     }
 
@@ -52,21 +65,19 @@ bool enablePrivileges(HANDLE token) {
     tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
     if (!AdjustTokenPrivileges(token, FALSE, &tp, sizeof(tp), NULL, NULL)) { 
-        DWORD err = GetLastError();
-        logMsg(L"Could not gain SE_ASSIGNPRIMARYTOKEN_NAME" + std::to_wstring(err) + L"\n");
+        reportError(L"Could not gain SE_ASSIGNPRIMARYTOKEN_NAME");
         return false;
     }
 
     return true;
 }
 
-bool runInSession(DWORD id, std::string path) {
-
-    // functionize1
+bool checkIfSystem(DWORD id, std::string path) {
     // check if system
     TCHAR username[256 + 1];
     DWORD username_len = 256 + 1;
     GetUserName(username, &username_len);
+
     // if not ran as system schedule a task to re-run this as system
     if (_tcscmp(username, _T("SYSTEM")) != 0) {
         std::wcout << "Ran as:" << username << " not system, registering scheduled task to run this as system" << "\n";
@@ -89,10 +100,21 @@ bool runInSession(DWORD id, std::string path) {
         if (!res) {
             std::cout << "Error while registering task";
             return false;
-        }else {
-            std::cout << "registered as SYSTEM task" << "\n";
-            return true;
         }
+        
+        std::cout << "registered as SYSTEM task" << "\n";
+        return true;
+    }
+
+    // already system
+    return true;
+}
+
+bool runInSession(DWORD id, std::string path) {
+
+    // check if running as system, if isnt make it so
+    if (!checkIfSystem(id, path)) {
+        return false;
     }
 
     logMsg(L"enumerating sessions...");
@@ -101,8 +123,7 @@ bool runInSession(DWORD id, std::string path) {
     //get session handles
     if (!WTSEnumerateSessions(NULL, 0, 1, &sessions, &sessionCount)) {
         // functionize
-        DWORD err = GetLastError();
-        logMsg(L"Failed to enumerate sessions, error:" + std::to_wstring(err) + L"\n");
+        reportError(L"Failed to enumerate sessions");
         return false; 
     }
 
@@ -122,8 +143,7 @@ bool runInSession(DWORD id, std::string path) {
             // get handle to user token
             HANDLE token = NULL;
             if (!WTSQueryUserToken(id, &token)) {
-                DWORD err = GetLastError();
-                logMsg(L"Could not get token for session: " + std::to_wstring(id) + L", error:" + std::to_wstring(err) + L"\n");
+                reportError(L"Could not get token for session: " + std::to_wstring(id));
                 WTSFreeMemory(sessions);
                 return false;
             }
@@ -138,8 +158,7 @@ bool runInSession(DWORD id, std::string path) {
             sa.lpSecurityDescriptor = NULL;
             DWORD dwAccess = TOKEN_ALL_ACCESS;
             if (!DuplicateTokenEx(token, dwAccess, &sa, SecurityImpersonation, TokenPrimary, &newToken)) {
-                DWORD err = GetLastError();
-                logMsg(L"Could not duplicate token for user session: " + std::to_wstring(id) + L", error:" + std::to_wstring(err));
+                reportError(L"Could not duplicate token for user session: " + std::to_wstring(id));
                 CloseHandle(token);
                 WTSFreeMemory(sessions);
                 return false;
@@ -172,8 +191,7 @@ bool runInSession(DWORD id, std::string path) {
             DWORD dwFlags = CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT;
             logMsg(L"trying to create process...");
             if (!CreateProcessAsUserA(newToken, NULL, path.data(), NULL, NULL, false, dwFlags, NULL, NULL, &si, &pi)) {
-                DWORD err = GetLastError();
-                logMsg(L"Could not create process in user session: " + std::to_wstring(id) + L", error:" + std::to_wstring(err));
+                reportError(L"Could not create process in user session: " + std::to_wstring(id));
                 CloseHandle(newToken);
                 CloseHandle(token);
                 CloseHandle(pi.hProcess);
@@ -182,13 +200,7 @@ bool runInSession(DWORD id, std::string path) {
                 return false;
             }
             logMsg(L"Created process");
-            
-            // functionize
-            std::wstring wstr;
-            size_t size;
-            wstr.resize(path.length());
-            mbstowcs_s(&size, &wstr[0], wstr.size() + 1, path.c_str(), path.size());
-            logMsg(L"Ran process: " + wstr + L" in session " + std::to_wstring(id));
+            logMsg(L"Ran process: " + stringToWide(path) + L" in session " + std::to_wstring(id));
 
             // cleanup
             CloseHandle(newToken);
