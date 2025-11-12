@@ -4,17 +4,24 @@ The purpose of this repo is to contain binary and ps options for various Windows
 The powershell script and binaries are designed to behave the same to prevent users from needing to know different arguments for each.
 
 ## Structure
+<pre>
+├── README.md   # Main documentation file
+│
+├── RunInSession/   # Tool for executing commands within a logged-in session
+│ ├── bin/   # Binary version source code
+│ ├── ps script/   # PowerShell script version
+│ └── README.md   # Tool-specific documentation
+│
+├── ModifyRID/   # Utility for modifying RID values of objects
+│ ├── bin/   # Binary version source code
+│ ├── ps script/   # PowerShell script version
+│ └── README.md   # Tool-specific documentation
+│
+└── ... # future tools follow the same structure
+</pre>
 
-├── README.md # Main documentation file
-│
-├── RunInSession/ # Tool for executing commands within a logged-in session
-│ ├── bin/ # binary version source code
-│ ├── ps script/ # PowerShell script version
-│ └── README.md # tool-specific documentation
-│
-├── ModifyRID/ # Utility for modifying RID values of Objects
-│ ├── bin/ # binary version source code
-│ ├── ps script/ # PowerShell script version
-│ └── README.md # tool-specific documentation
-│
-└── ... # Future tools follow the same structure
+
+## Tools
+
+### RunInSession
+This tool can be used to run a process in any or all active sessions on the host machine. This will need administrator permissions to run properly.
