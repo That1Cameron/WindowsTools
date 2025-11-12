@@ -264,15 +264,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (!args.count("-a") && !args.count("-id")) {
+        std::cerr << "Error: select either all sessions (-a) or provide a specific session (-id)\n\n";
+        showHelp();
+        return 1;
+    }
+
     // validate path
     std::string path = args["-path"];
     if (!std::filesystem::exists(path)) {
         std::cerr << "Error: The specified path does not exist. Provided path:" << path << "\n";
         return 1;
     }
-
-    // debug remove
-    std::cout << "Executable path: " << std::filesystem::absolute(path) << "\n";
 
     if (args.count("-a")) {
         std::cout << "Getting handle to all sessions" << "\n";
