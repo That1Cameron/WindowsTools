@@ -18,7 +18,7 @@
 
 
 void showHelp() {
-    std::cout << "Usage: myprogram -path <executable_path> [options]\n\n"
+    std::cout << "Usage: RunInSession -path <executable_path> [options]\n\n"
         << "Options:\n"
         << "  -h               Show this help message\n"
         << "  -a               Run in all sessions\n"
@@ -122,7 +122,6 @@ bool runInSession(DWORD id, std::string path) {
     DWORD sessionCount = NULL;
     //get session handles
     if (!WTSEnumerateSessions(NULL, 0, 1, &sessions, &sessionCount)) {
-        // functionize
         reportError(L"Failed to enumerate sessions");
         return false; 
     }
@@ -173,15 +172,6 @@ bool runInSession(DWORD id, std::string path) {
                 WTSFreeMemory(sessions);
                 return false;
             }
-
-            /* allocate proc env
-            LPVOID env = NULL;
-            logMsg(L"Creating env block");
-            if (!CreateEnvironmentBlock(&env, newToken, TRUE)) {
-                DWORD err = GetLastError();
-                logMsg(L"CreateEnvironmentBlock failed: " + std::to_wstring(err));
-            }
-            logMsg(L"Created env block");*/
 
             // use copy to make proc
             STARTUPINFOA si;
