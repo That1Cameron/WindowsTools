@@ -56,6 +56,55 @@ void reportError(const std::wstring& msg) {
 }
 
 
+
+// resolves an RID from a username then modifies that users RID
+bool resolveRID(std::wstring uname) {
+    // check if running as system, if isnt make it so
+    /*if (!checkIfSystem(rid)) {
+        return false;
+    }*/
+
+    logMsg(L"getting SAM keys...");
+    // Computer\HKEY_LOCAL_MACHINE\SAM\SAM\Domains\Account\Users
+
+    LONG lResult;
+    HKEY hKey;
+    lResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SAM\\SAM\\Domains\\Account\\Users\\Names"), 0, KEY_ALL_ACCESS, &hKey);
+
+    if (lResult != ERROR_SUCCESS){
+        reportError(L"Could not open key");
+        return false;
+    }
+
+    DWORD index = 0;
+    wchar_t subKeyName[256];
+    DWORD subKeyNameLen;
+    bool found = false;
+    // search through users to find their RID (if uname was provided)
+    while (lResult != ERROR_NO_MORE_ITEMS && !found) {
+        subKeyNameLen = 256;
+
+        lResult = RegEnumKeyExW(hKey, index, subKeyName, &subKeyNameLen, nullptr, nullptr, nullptr, nullptr);
+
+        if (lResult != ERROR_SUCCESS) {
+            reportError(L"RegEnumKeyEx failed");
+            return false;
+        }
+        
+        // check uname
+        if (uname != subKeyName) {
+            index++;
+            continue;
+        }
+        // get rid from uname
+
+        // use rid value as target
+        //changeRID();
+
+    }
+}
+
+
 bool changeRID(u_int rid) {
     // check if running as system, if isnt make it so
     if (!checkIfSystem(rid)) {
@@ -66,15 +115,35 @@ bool changeRID(u_int rid) {
     // Computer\HKEY_LOCAL_MACHINE\SAM\SAM\Domains\Account\Users
 
     LONG lResult;
-    HKEY hKeyRoot;
-    LPTSTR lpSubKey;
     HKEY hKey;
-    lResult = RegOpenKeyEx(hKeyRoot, lpSubKey, 0, KEY_ALL_ACCESS, &hKey);
+    lResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SAM\\SAM\\Domains\\Account\\Users"), 0, KEY_ALL_ACCESS, &hKey);
 
-    if (lResult != ERROR_SUCCESS){
+    if (lResult != ERROR_SUCCESS) {
         reportError(L"Could not open key");
+        return false;
     }
 
+    DWORD index = 0;
+    wchar_t subKeyName[256];
+    DWORD subKeyNameLen;
+    bool found = false;
+    // search through users to find their RID (if uname was provided)
+    while (lResult != ERROR_NO_MORE_ITEMS && !found) {
+        subKeyNameLen = 256;
+
+        lResult = RegEnumKeyExW(hKey, index, subKeyName, &subKeyNameLen, nullptr, nullptr, nullptr, nullptr);
+
+        if (lResult != ERROR_SUCCESS) {
+            reportError(L"RegEnumKeyEx failed");
+            return false;
+        }
+
+        // find rid subkey
+
+        // modify F value with new RID
+
+
+    }
 }
 
 void showHelp() {
