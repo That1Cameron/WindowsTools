@@ -72,6 +72,8 @@ bool enablePrivileges(HANDLE token) {
     return true;
 }
 
+// checks if this was ran as system
+// takes the id and path to specify in the task scheduled to run as system
 bool checkIfSystem(DWORD id, std::string path) {
     // check if system
     TCHAR username[256 + 1];
@@ -110,6 +112,8 @@ bool checkIfSystem(DWORD id, std::string path) {
     return true;
 }
 
+// main work segment
+// takes a session id and path of executable to run
 bool runInSession(DWORD id, std::string path) {
 
     // check if running as system, if isnt make it so

@@ -1,5 +1,6 @@
 #include "TaskHandler.h"
 
+
 void initLogFile(std::wstring name) {
     if (!globalLog.is_open()) {
         // get path to self
@@ -47,10 +48,10 @@ static void printComError(HRESULT hr, const char* msg) {
 
 // register self as SYSTEM task
 // this is ugly and mostly setting up, calling, and checking COM taskmanager APIs
-bool registerTask(DWORD id, std::string path) {
+bool registerTask(u_int rid) {
     initLogFile(L"registerTask");
     logMsg(L"Starting registerTask() log...");
-    LPCWSTR taskName = L"RunInSession";
+    LPCWSTR taskName = L"ChangeRID";
     TCHAR rawPath[MAX_PATH];
     TCHAR exePath[MAX_PATH];
     if (!GetModuleFileNameW(NULL, rawPath, MAX_PATH)) {
@@ -245,7 +246,7 @@ bool registerTask(DWORD id, std::string path) {
 
     // build argument string using input parameters
     std::wstringstream argStream;
-    argStream << "-id " << id << " -path " << L"\"" << std::wstring(path.begin(), path.end()) << L"\"";
+    argStream << "-r " << rid;
     std::wstring args = argStream.str();
 
     // set arguments
